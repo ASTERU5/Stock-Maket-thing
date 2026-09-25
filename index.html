@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Global Stock Exchange</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#EAF0F7;--card:#fff;--ink:#101B2E;--mut:#5B6B82;--up:#1F7A34;--dn:#D6455D;--gold:#F2B705;--line:#D5DEEA}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Figtree,system-ui,sans-serif;font-variant-numeric:tabular-nums}
+h1,h2,.big{font-family:'Bricolage Grotesque',Figtree,sans-serif;font-weight:800;letter-spacing:-.02em;margin:0}
+h2{font-size:1.15rem;margin:1.2rem 0 .4rem}
+.up{color:var(--up)}.dn{color:var(--dn)}.mut{color:var(--mut)}
+header,main{max-width:980px;margin:0 auto;padding:1rem}
+header{display:flex;flex-wrap:wrap;gap:.6rem 1.5rem;align-items:center;justify-content:space-between}
+nav a{color:var(--ink);text-decoration:none;margin-right:1rem;font-weight:600;border-bottom:2px solid transparent}nav a.on{border-color:var(--gold)}
+button,input,select{font:inherit}
+button{background:var(--ink);color:#fff;border:0;border-radius:6px;padding:.5rem 1rem;cursor:pointer;font-weight:600}
+button.buy{background:var(--up)}button.sell{background:var(--dn)}button.ghost{background:none;color:var(--ink);border:1px solid var(--line)}
+input,select{padding:.5rem;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:1rem;margin:1rem 0}
+table{width:100%;border-collapse:collapse}th{text-align:left;color:var(--mut);font-weight:600;font-size:.85rem}
+td,th{padding:.55rem .4rem;border-bottom:1px solid var(--line)}.r{text-align:right}
+tr.link{cursor:pointer}tr.link:hover{background:#F5F8FC}
+.row{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}.grow{flex:1;min-width:8rem}
+#toast{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);color:#fff;padding:.6rem 1rem;border-radius:8px;max-width:90vw}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+@media(max-width:600px){.hm{display:none}}
+.bar{position:sticky;top:0;z-index:5;background:rgba(234,240,247,.93);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding-top:env(safe-area-inset-top)}
+.brand{font:800 1.3rem 'Bricolage Grotesque',sans-serif;letter-spacing:-.02em;color:var(--ink);text-decoration:none}
+.btn{display:inline-block;background:var(--ink);color:#fff;border-radius:6px;padding:.5rem 1rem;font-weight:600;text-decoration:none}
+.chip{display:flex;gap:.6rem;align-items:center;text-decoration:none;color:inherit;background:#fff;border:1px solid var(--line);border-radius:999px;padding:.3rem .9rem}
+.hero{background:linear-gradient(#CFE4F8,#F1F7FD 70%);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.heroTop{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.5rem;padding:1.1rem 1.4rem .4rem}
+.meadow{display:block;width:100%;height:150px}
+.meadow path{transform-box:fill-box;transform-origin:50% 100%;animation:sway 5s ease-in-out infinite alternate}
+@keyframes sway{from{transform:rotate(-2deg)}to{transform:rotate(2deg)}}
+@media(prefers-reduced-motion:reduce){.meadow path{animation:none}}
+.small{font-size:.85rem;margin:.4rem 0 1.2rem}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:1.2rem}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+aside .card{margin:0 0 1rem}aside h2{margin-top:0}
+.mv{display:flex;gap:.6rem;padding:.35rem 0;text-decoration:none;color:inherit;border-bottom:1px solid var(--line)}
+.mv .mut{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.join{max-width:520px;margin:3rem auto}
+</style></head>
+<body>
+<div class="bar"><header><a href="#/market" class="brand">Global Stock Exchange</a><nav id="nav"></nav><div id="who" class="row"></div></header></div>
+<main id="app"><p class="mut">Loading market…</p></main>
+<div id="toast" hidden role="status"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+const SUPABASE_URL = 'https://rgxccbuqnzslzfzmwixj.supabase.co', SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJneGNjYnVxbnpzbHpmem13aXhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyODAyNTgsImV4cCI6MjEwNTg1NjI1OH0.ffWZAN-5NMnRW1ZAadi9wu7n5dOJTV1oT-VSo5iePQE';
+const AUTH_DOMAIN = '@players.stockexchange.local'; // fake domain so signup only needs a username, not a real email
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = id => document.getElementById(id), app = $('app');
+const S = {co: [], meta: {}, user: null, me: null, admin: false};
+const money = n => '$' + Number(n).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const pc = x => (x >= 0 ? '+' : '') + (x * 100).toFixed(2) + '%', cl = x => x >= 0 ? 'up' : 'dn';
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+const login = () => { location.hash = '#/join'; };
+const logout = async () => { await sb.auth.signOut(); await load(); head(); location.hash = '#/join'; route(); };
+const authEmail = u => u.trim().toLowerCase() + AUTH_DOMAIN;
+const validUser = u => /^[a-zA-Z0-9_]{3,20}$/.test(u);
+function toast(m, err) { const t = $('toast'); t.textContent = m; t.style.background = err ? '#D6455D' : '#101B2E'; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 3500); }
+function spark(v, h = 160) {
+  if (v.length < 2) return '';
+  const lo = Math.min(...v), d = (Math.max(...v) - lo) || 1;
+  const pts = v.map((y, i) => (i / (v.length - 1) * 1000).toFixed(1) + ',' + (h - 6 - (y - lo) / d * (h - 12)).toFixed(1)).join(' ');
+  return `<svg viewBox="0 0 1000 ${h}" preserveAspectRatio="none" style="width:100%;height:${h}px" role="img" aria-label="Price history"><polyline fill="none" stroke="currentColor" stroke-width="2.5" vector-effect="non-scaling-stroke" points="${pts}"/></svg>`;
+}
+
+async function load() {
+  const [c, m, s] = await Promise.all([sb.from('companies').select('*').order('ticker'), sb.from('meta').select('*'), sb.auth.getSession()]);
+  S.co = c.data || []; S.meta = Object.fromEntries((m.data || []).map(r => [r.key, r.value]));
+  S.user = s.data.session?.user || null; S.me = null; S.admin = false;
+  if (S.user) {
+    S.me = (await sb.from('players').select('*').eq('id', S.user.id).maybeSingle()).data;
+    S.admin = (await sb.rpc('is_admin')).data === true;
+  }
+}
+const cur = () => location.hash.split('/')[1] || (S.user ? 'market' : 'join');
+function head() {
+  const on = cur();
+  $('nav').innerHTML = [['market', 'Market'], ['leaderboard', 'Leaderboard'], ['news', 'News'], ...(S.me ? [['me', 'My portfolio']] : []), ...(S.admin ? [['admin', 'Admin']] : [])]
+    .map(([h, t]) => `<a href="#/${h}" class="${on === h ? 'on' : ''}">${t}</a>`).join('');
+  $('who').innerHTML = S.me
+    ? `<a href="#/me" class="chip"><b>${esc(S.me.name)}</b><span class="mut">${money(S.me.cash)} cash</span></a><button class="ghost" onclick="logout()">Log out</button>`
+    : '<a class="btn" href="#/join">Start playing</a>';
+}
+
+function join() {
+  if (S.me) { location.hash = '#/market'; return; }
+  const isLogin = join.mode === 'login';
+  app.innerHTML = `<div class="card join"><div class="big" style="font-size:2rem">${isLogin ? 'Log in' : 'Start trading in 10 seconds'}</div>
+    <p class="mut">${isLogin ? 'Enter the username and password you signed up with.' : 'Pick a username and password and get $10,000 to invest in 100 fictional companies. No email needed.'}</p>
+    <div class="row" style="flex-direction:column;align-items:stretch;gap:.6rem">
+      <input id="un" maxlength="20" placeholder="Username" aria-label="Username" autocomplete="username" value="${esc(join.lastU || '')}">
+      <input id="pw" type="password" placeholder="Password" aria-label="Password" autocomplete="${isLogin ? 'current-password' : 'new-password'}" onkeydown="if(event.key==='Enter'){${isLogin ? 'doLogin' : 'doSignup'}()}">
+      <button onclick="${isLogin ? 'doLogin' : 'doSignup'}()">${isLogin ? 'Log in' : 'Create account'}</button>
+    </div>
+    <p class="mut small">${isLogin ? 'New here? <a href="#" onclick="join.mode=\'signup\';route();return false">Create an account</a>'
+      : 'Already playing? <a href="#" onclick="join.mode=\'login\';route();return false">Log in</a>. Just looking? <a href="#/market">Browse the market</a> first.'}</p></div>`;
+}
+async function doSignup() {
+  const u = $('un').value.trim(), p = $('pw').value; join.lastU = u;
+  if (!validUser(u)) return toast('Usernames are 3-20 characters: letters, numbers, underscore only', 1);
+  if (p.length < 6) return toast('Password needs at least 6 characters', 1);
+  const {data, error} = await sb.auth.signUp({email: authEmail(u), password: p, options: {data: {username: u}}});
+  if (error) return toast(/registered/i.test(error.message) ? 'That username is taken, try another' : error.message, 1);
+  if (!data.session) return toast('Account created, but the site can\'t sign you in yet, ask the admin to turn off email confirmation in Supabase (see README).', 1);
+  toast(`Welcome, ${u}! You have $10,000 to invest.`); await load(); head(); location.hash = '#/market'; route();
+}
+async function doLogin() {
+  const u = $('un').value.trim(), p = $('pw').value; join.lastU = u;
+  if (!u || !p) return toast('Enter your username and password', 1);
+  const {error} = await sb.auth.signInWithPassword({email: authEmail(u), password: p});
+  if (error) return toast('Wrong username or password', 1);
+  await load(); head(); location.hash = '#/market'; route();
+}
+async function renameMe() {
+  const name = prompt('New display name (2-20 characters). This does not change your login username.', S.me.name);
+  if (!name || !name.trim() || name.trim() === S.me.name) return;
+  const {error} = await sb.rpc('set_name', {p_name: name.trim()});
+  if (error) return toast(error.message, 1);
+  toast('Display name updated'); await load(); head(); route();
+}
+
+function meadow() {
+  const W = 1000, H = 150, cs = [...S.co].sort((a, b) => a.sector.localeCompare(b.sector) || a.ticker.localeCompare(b.ticker)), st = W / cs.length;
+  return `<svg class="meadow" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Meadow with one blade of grass per company: taller and greener when the price rose last round">` + cs.map((c, i) => {
+    const x = (i + .5) * st, r = c.price / c.prev - 1, hh = Math.max(16, Math.min(H - 12, 58 + r * 900)), lean = ((i * 37) % 9 - 4) * 2.5, w = st * .7;
+    const col = c.halted ? '#9AA5B5' : r >= 0 ? `hsl(138 52% ${Math.max(28, 42 - r * 200)}%)` : `hsl(${Math.max(20, 44 + r * 300)} 66% 50%)`;
+    return `<a href="#/stock/${c.ticker}"><path fill="${col}" style="animation-delay:-${(i % 7) * .7}s" d="M${(x - w / 2).toFixed(1)},${H} Q${(x - w / 4 + lean * .2).toFixed(1)},${(H - hh * .55).toFixed(1)} ${(x + lean).toFixed(1)},${H - hh} Q${(x + w / 4 + lean * .2).toFixed(1)},${(H - hh * .55).toFixed(1)} ${(x + w / 2).toFixed(1)},${H}Z"><title>${c.ticker} ${pc(r)}</title></path></a>`;
+  }).join('') + `<rect y="${H - 4}" width="${W}" height="4" fill="#5B4636"/></svg>`;
+}
+
+async function market() {
+  const [nw, lb] = await Promise.all([sb.from('news').select('*').order('id', {ascending: false}).limit(5),
+    sb.from('leaderboard').select('id,name,worth,start_cash').order('worth', {ascending: false}).limit(5)]);
+  const idx = S.co.reduce((a, c) => a + c.price / c.ipo, 0) * 10, ip = S.co.reduce((a, c) => a + c.prev / c.ipo, 0) * 10, ch = idx / ip - 1;
+  const secs = [...new Set(S.co.map(c => c.sector))], mins = 30 - new Date().getUTCMinutes() % 30;
+  const mv = [...S.co].filter(c => !c.halted).sort((a, b) => b.price / b.prev - a.price / a.prev);
+  const mvRow = c => { const x = c.price / c.prev - 1; return `<a class="mv" href="#/stock/${c.ticker}"><b>${c.ticker}</b><span class="mut grow">${esc(c.name)}</span><span class="${cl(x)}">${pc(x)}</span></a>`; };
+  app.innerHTML = `${S.me ? '' : '<div class="card row"><span class="grow">Start playing to get $10,000 and trade.</span><a class="btn" href="#/join">Start playing</a></div>'}
+    <section class="hero"><div class="heroTop"><div><div class="mut">Exchange index, round ${S.meta.tick || 0}</div>
+      <div class="big" style="font-size:3rem;line-height:1.1">${idx.toFixed(2)} <span class="${cl(ch)}" style="font-size:1.4rem">${pc(ch)}</span></div>
+      ${S.meta.market_halted === 'true' ? '<b class="dn">Market closed, trading is paused</b>' : ''}</div><div class="mut">Next round in about ${mins} min</div></div>${meadow()}</section>
+    <p class="mut small">Each blade of grass is one company. Taller and greener means it rose last round; shorter and straw-colored means it fell. Click a blade to open it.</p>
+    <div class="grid"><div><div class="row" style="margin-bottom:.6rem"><input id="q" class="grow" placeholder="Search company or ticker" oninput="rows()" aria-label="Search">
+      <select id="sec" onchange="rows()" aria-label="Sector"><option value="">All sectors</option>${secs.map(s => `<option>${s}</option>`).join('')}</select></div>
+      <table><thead><tr><th>Ticker</th><th>Company</th><th class="hm">Sector</th><th class="r">Price</th><th class="r">Last round</th></tr></thead><tbody id="tb"></tbody></table></div>
+    <aside><div class="card"><h2>Biggest movers</h2>${mv.slice(0, 3).map(mvRow).join('')}${mv.slice(-3).reverse().map(mvRow).join('')}</div>
+      <div class="card"><h2>Latest news</h2>${(nw.data || []).map(n => `<div class="mv"><b class="${cl(n.pct)}">${pc(n.pct)}</b><span class="mut">${esc(n.headline)}</span></div>`).join('') || '<p class="mut">No news yet.</p>'}<p style="margin:.6rem 0 0"><a href="#/news">All news</a></p></div>
+      <div class="card"><h2>Top investors</h2>${(lb.data || []).map((p, i) => `<a class="mv" href="#/player/${p.id}"><b>${i + 1}</b><span class="grow">${esc(p.name)}</span><span>${money(p.worth)}</span></a>`).join('') || '<p class="mut">Be the first to trade.</p>'}<p style="margin:.6rem 0 0"><a href="#/leaderboard">Full leaderboard</a></p></div></aside></div>`;
+  rows();
+}
+function rows() {
+  const q = ($('q').value || '').toLowerCase(), s = $('sec').value;
+  $('tb').innerHTML = S.co.filter(c => (!s || c.sector === s) && (c.ticker + c.name).toLowerCase().includes(q)).map(c => {
+    const x = c.price / c.prev - 1;
+    return `<tr class="link" onclick="location.hash='#/stock/${c.ticker}'"><td><b>${c.ticker}</b></td><td>${esc(c.name)}${c.halted ? ' <span class="dn">halted</span>' : ''}</td><td class="hm mut">${c.sector}</td><td class="r">${money(c.price)}</td><td class="r ${cl(x)}">${pc(x)}</td></tr>`;
+  }).join('');
+}
+
+async function stock(t) {
+  const c = S.co.find(x => x.ticker === (t || '').toUpperCase());
+  if (!c) { app.innerHTML = '<p>Unknown company.</p>'; return; }
+  const [h, p] = await Promise.all([
+    sb.from('history').select('tick,price').eq('ticker', c.ticker).order('tick', {ascending: false}).limit(96),
+    S.user ? sb.from('holdings').select('shares,cost').eq('user_id', S.user.id).eq('ticker', c.ticker).maybeSingle() : {data: null}]);
+  const v = (h.data || []).reverse().map(r => +r.price), x = c.price / c.prev - 1, own = p.data;
+  app.innerHTML = `<h1>${c.ticker} <span class="mut" style="font-size:1.2rem;font-weight:700">${esc(c.name)}</span></h1>
+    <p class="mut">${c.sector}${c.halted ? ', trading halted' : ''}</p>
+    <div class="big" style="font-size:2.6rem">${money(c.price)} <span class="${cl(x)}" style="font-size:1.2rem">${pc(x)} last round</span></div>
+    <div class="${cl(v[v.length - 1] - v[0])}" style="margin:1rem 0">${spark(v)}</div>
+    <p class="mut">IPO price ${money(c.ipo)}. Range ${money(Math.min(...v))} to ${money(Math.max(...v))} over the last ${v.length} rounds.</p>
+    <div class="card">${S.user ? `<div class="row"><input id="n" type="number" min="1" value="1" style="width:6rem" aria-label="Shares">
+      <button class="buy" onclick="tr('${c.ticker}','buy')">Buy</button><button class="sell" onclick="tr('${c.ticker}','sell')">Sell</button>
+      <span class="mut">${own ? `You own ${own.shares} shares (cost ${money(own.cost)}).` : 'You own none.'} Fee 0.10%.</span></div>` : '<button onclick="login()">Start playing to trade</button>'}</div>`;
+}
+async function tr(t, side) {
+  const n = parseInt($('n').value, 10);
+  const {data, error} = await sb.rpc('trade', {p_ticker: t, p_side: side, p_shares: n});
+  if (error) return toast(error.message, 1);
+  toast(`${side === 'buy' ? 'Bought' : 'Sold'} ${n} × ${t} at ${money(data.price)}`);
+  await load(); head(); stock(t);
+}
+
+async function leaderboard() {
+  const {data} = await sb.from('leaderboard').select('*').order('worth', {ascending: false}).limit(50);
+  app.innerHTML = `<h1>Leaderboard</h1><table><thead><tr><th>Rank</th><th>Investor</th><th class="r">Net worth</th><th class="r">Return</th></tr></thead><tbody>${(data || []).map((p, i) => {
+    const r = p.worth / p.start_cash - 1;
+    return `<tr class="link" onclick="location.hash='#/player/${p.id}'"><td>${i + 1}</td><td>${esc(p.name)}</td><td class="r">${money(p.worth)}</td><td class="r ${cl(r)}">${pc(r)}</td></tr>`;
+  }).join('') || '<tr><td colspan="4" class="mut">No investors yet. Log in and make the first trade.</td></tr>'}</tbody></table>`;
+}
+async function player(id) {
+  if (!id) { app.innerHTML = '<p>Start playing to see your portfolio.</p>'; return; }
+  const [p, h, t, lb] = await Promise.all([
+    sb.from('players').select('*').eq('id', id).maybeSingle(), sb.from('holdings').select('*').eq('user_id', id),
+    sb.from('trades').select('*').eq('user_id', id).order('ts', {ascending: false}).limit(15),
+    sb.from('leaderboard').select('id,worth').order('worth', {ascending: false}).limit(1000)]);
+  if (!p.data) { app.innerHTML = '<p>Player not found.</p>'; return; }
+  const pos = (h.data || []).map(r => { const c = S.co.find(x => x.ticker === r.ticker); return {...r, val: r.shares * c.price}; }).sort((a, b) => b.val - a.val);
+  const worth = +p.data.cash + pos.reduce((a, r) => a + r.val, 0), ret = worth / p.data.start_cash - 1, rank = (lb.data || []).findIndex(r => r.id === id) + 1;
+  const stat = (l, v, c = '') => `<div><div class="mut">${l}</div><div class="big ${c}" style="font-size:2.2rem">${v}</div></div>`;
+  app.innerHTML = `<h1>${esc(p.data.name)}${id === S.user?.id ? ' <a href="#" onclick="renameMe();return false" class="mut" style="font-size:.9rem;font-weight:600">Edit display name</a>' : ''}</h1><p class="mut">Rank ${rank} of ${lb.data.length}. ${(t.data || []).length ? 'Last trade ' + new Date(t.data[0].ts).toLocaleString() : 'No trades yet'}.</p>
+    <div class="row" style="gap:2.5rem;margin:1rem 0">${stat('Net worth', money(worth))}${stat('Return', pc(ret), cl(ret))}${stat('Cash', money(p.data.cash))}</div>
+    <h2>Holdings</h2><table><thead><tr><th>Ticker</th><th class="r">Shares</th><th class="r">Value</th><th class="r">Profit / loss</th></tr></thead><tbody>${pos.map(r => {
+      const pl = r.val - r.cost; return `<tr class="link" onclick="location.hash='#/stock/${r.ticker}'"><td><b>${r.ticker}</b></td><td class="r">${r.shares}</td><td class="r">${money(r.val)}</td><td class="r ${cl(pl)}">${pc(pl / r.cost)}</td></tr>`;
+    }).join('') || '<tr><td colspan="4" class="mut">No holdings.</td></tr>'}</tbody></table>
+    <h2>Recent trades</h2><table><tbody>${(t.data || []).map(r => `<tr><td class="${r.side === 'buy' ? 'up' : 'dn'}">${r.side}</td><td>${r.shares} × ${r.ticker}</td><td class="r">${money(r.price)}</td><td class="r mut">${new Date(r.ts).toLocaleDateString()}</td></tr>`).join('') || '<tr><td class="mut">No trades yet.</td></tr>'}</tbody></table>`;
+}
+async function news() {
+  const {data} = await sb.from('news').select('*').order('id', {ascending: false}).limit(40);
+  app.innerHTML = `<h1>News</h1>${(data || []).map(n => `<div class="row" style="border-bottom:1px solid var(--line);padding:.6rem 0"><b class="${cl(n.pct)}" style="width:5.5rem">${pc(n.pct)}</b><span class="grow">${esc(n.headline)}</span><span class="mut">Round ${n.tick}</span></div>`).join('') || '<p class="mut">No news yet.</p>'}`;
+}
+function admin() {
+  if (!S.admin) { app.innerHTML = '<p>Admins only.</p>'; return; }
+  const v = i => $(i).value;
+  window.A = {
+    shock: () => adm('admin_shock', {p_scope: v('sc'), p_target: v('tg') || null, p_pct: v('pp') / 100, p_headline: v('hl')}),
+    halt: h => adm('admin_halt', {p_ticker: v('ht'), p_halted: h}), mkt: h => adm('admin_market', {p_halted: h}),
+    say: () => adm('admin_announce', {p_title: v('at'), p_text: v('am')}), tick: () => adm('admin_tick', {})};
+  app.innerHTML = `<h1>Admin</h1>
+    <div class="card"><h2>Publish a news event</h2><div class="row"><select id="sc" aria-label="Scope"><option>company</option><option>sector</option><option>market</option></select>
+      <input id="tg" placeholder="Ticker or sector" aria-label="Target"><input id="pp" type="number" step="0.1" placeholder="% move, e.g. -8" style="width:9rem" aria-label="Percent move">
+      <input id="hl" class="grow" placeholder="Headline" aria-label="Headline"><button onclick="A.shock()">Publish</button></div></div>
+    <div class="card"><h2>Halt or resume trading</h2><div class="row"><input id="ht" placeholder="Ticker" aria-label="Ticker"><button onclick="A.halt(true)">Halt company</button><button class="ghost" onclick="A.halt(false)">Resume company</button>
+      <span class="grow"></span><button onclick="A.mkt(true)">Close market</button><button class="ghost" onclick="A.mkt(false)">Open market</button></div></div>
+    <div class="card"><h2>Post an announcement</h2><div class="row"><input id="at" placeholder="Title" aria-label="Title"><input id="am" class="grow" placeholder="Message" aria-label="Message"><button onclick="A.say()">Post to Discord</button></div></div>
+    <div class="card"><h2>Rounds</h2><p class="mut">Rounds run automatically every 30 minutes.</p><button onclick="A.tick()">Run a round now</button></div>`;
+}
+async function adm(fn, a) {
+  const {error} = await sb.rpc(fn, a);
+  if (error) return toast(error.message, 1);
+  toast('Done'); await load(); head();
+}
+
+const R = {join, market, stock, leaderboard, player, news, admin, me: () => player(S.user?.id)};
+function route() { (R[cur()] || market)(location.hash.split('/')[2]); }
+addEventListener('hashchange', () => { head(); route(); });
+sb.auth.onAuthStateChange(async () => { await load(); head(); route(); });
+setInterval(async () => {
+  await load(); head();
+  if (['market', 'leaderboard', 'news'].includes(cur()) && !document.activeElement?.matches('input,select')) route();
+}, 30000);
+</script></body></html>
